@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Which Moomin Character Are You?</title>
+<style>
+  :root{
+    --bg:#f8f7f3;
+    --card:#ffffff;
+    --ink:#2f2f2f;
+    --muted:#6b6b6b;
+    --accent:#7bc4e0;
+    --accent-dark:#5ab4d4;
+    --shadow:0 6px 18px rgba(0,0,0,.08);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    background:var(--bg);
+    color:var(--ink);
+    display:flex; justify-content:center;
+    padding:24px;
+  }
+  .app{
+    width:min(920px, 100%);
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:24px 20px 28px;
+  }
+  h1{margin:0 0 6px;font-size:clamp(22px,3.2vw,34px); text-align:center}
+  .sub{color:var(--muted); text-align:center; margin-bottom:18px}
+  .progress-wrap{background:#eceae6; height:10px; border-radius:999px; overflow:hidden}
+  .progress{height:100%; width:0; background:linear-gradient(90deg, var(--accent), var(--accent-dark)); transition:width .25s}
+  .q{
+    margin-top:18px;
+    padding:18px;
+    border:1px solid #efeee9;
+    border-radius:12px;
+    background:#fcfbf8;
+  }
+  .q-title{font-weight:700; margin-bottom:10px}
+  .opts{display:grid; gap:10px}
+  .opt{
+    display:flex; align-items:flex-start; gap:10px;
+    background:#f1f0ec; border-radius:10px; padding:10px 12px; cursor:pointer;
+    border:1px solid transparent;
+  }
+  .opt:hover{background:#e7e6e2}
+  .opt input{margin-top:4px}
+  .nav{
+    margin-top:16px; display:flex; gap:10px; justify-content:space-between; flex-wrap:wrap
+  }
+  button{
+    border:none; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:600;
+    background:var(--accent); color:white;
+  }
+  button.secondary{background:#ddd; color:#333}
+  button:disabled{opacity:.6; cursor:not-allowed}
+  .error{color:#b84a4a; margin-top:8px; display:none}
+  .result{
+    margin-top:20px; text-align:center
+  }
+  .badge{
+    margin:16px auto 8px; width:120px; height:120px; border-radius:50%;
+    display:grid; place-items:center; color:white; font-size:44px; box-shadow:var(--shadow);
+  }
+  .desc{color:var(--muted); max-width:650px; margin:8px auto 0; line-height:1.5}
+  .restart{margin-top:16px}
+  .grid-two{display:grid; grid-template-columns:1fr; gap:16px; margin-top:18px}
+  @media (min-width:760px){
+    .grid-two{grid-template-columns:1fr 1fr}
+  }
+  .card{
+    border:1px solid #efeee9; border-radius:12px; background:#fcfbf8; padding:14px
+  }
+  .small{font-size:12px; color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <h1>Which Moomin Character Are You?</h1>
+  <div class="sub">20 questions. Pick what feels most like you.</div>
+  <div class="progress-wrap" aria-hidden="true"><div class="progress" id="progress"></div></div>
+  <form id="form" novalidate></form>
+  <div class="nav">
+    <button type="button" class="secondary" id="prevBtn">← Previous</button>
+    <div style="display:flex; gap:10px">
+      <button type="button" class="secondary" id="saveBtn">Save progress</button>
+      <button type="button" id="nextBtn">Next →</button>
+      <button type="button" id="finishBtn" style="display:none">See My Character ✨</button>
+    </div>
+  </div>
+  <div class="error" id="err">Please pick one option to continue.</div>
+  <div id="result" class="result"></div>
+</div>
+
+<script>
+// --- Character definitions ---
+const CHARACTERS = {
+  Moomintroll: { color:"#6ab04c", emoji:"🦛", blurb:"Curious, friendly, and loyal. You love small adventures as much as cozy evenings with friends."},
+  Snufkin:     { color:"#2d6a4f", emoji:"🎒", blurb:"A freedom-loving wanderer. Minimalist, philosophical, allergic to clutter and rules."},
+  "Little My": { color:"#d62828", emoji:"🔥", blurb:"Tiny but fierce. Bold, blunt, chaotic good. You say what others only think."},
+  Snorkmaiden: { color:"#ffafcc", emoji:"✨", blurb:"Romantic and organized. You crave beauty, plans that work, and a dash of drama."},
+  Moominmamma: { color:"#f4a261", emoji:"👜", blurb:"Calm, warm, and practical. You keep everyone fed, safe, and surprisingly adventurous."}
+};
+
+// --- 20 unique questions with themed options (each mapped to a character) ---
+const QUESTIONS = [
+  {
+    t:"Your perfect Saturday looks like…",
+    o:[
+      {label:"A gentle hike then tea with friends", c:"Moomintroll"},
+      {label:"Packing a bag and disappearing down a new path", c:"Snufkin"},
+      {label:"Starting five projects and finishing whichever survives", c:"Little My"},
+      {label:"Brunch, errands, and a color‑coded plan for next week", c:"Snorkmaiden"},
+      {label:"Cooking a big pot and inviting everyone over", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"A friend calls at midnight needing help. You…",
+    o:[
+      {label:"Grab a blanket and head out immediately", c:"Moomintroll"},
+      {label:"Offer wise advice, then let them choose", c:"Snufkin"},
+      {label:"Kick their door in (metaphorically) and fix it now", c:"Little My"},
+      {label:"Make a checklist, assign steps, track progress", c:"Snorkmaiden"},
+      {label:"Put the kettle on and listen first", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Your room usually looks…",
+    o:[
+      {label:"Lived‑in, with cozy clutter", c:"Moomintroll"},
+      {label:"Bare essentials only", c:"Snufkin"},
+      {label:"Organized chaos (emphasis on chaos)", c:"Little My"},
+      {label:"Immaculate and coordinated", c:"Snorkmaiden"},
+      {label:"Warm, practical, everything has a place", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"When plans change last minute…",
+    o:[
+      {label:"No worries — new adventure!", c:"Moomintroll"},
+      {label:"Perfect excuse to wander alone", c:"Snufkin"},
+      {label:"Great, let’s cause a little trouble instead", c:"Little My"},
+      {label:"…After I redo the entire plan", c:"Snorkmaiden"},
+      {label:"We’ll make it work. Snacks help.", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Pick a season:",
+    o:[
+      {label:"Soft spring", c:"Moomintroll"},
+      {label:"Crisp autumn", c:"Snufkin"},
+      {label:"Stormy summer", c:"Little My"},
+      {label:"Glittering winter", c:"Snorkmaiden"},
+      {label:"Mild, sunlit late summer", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Your superpower in the group is…",
+    o:[
+      {label:"Making everyone feel included", c:"Moomintroll"},
+      {label:"Seeing the big picture", c:"Snufkin"},
+      {label:"Saying the hard truth", c:"Little My"},
+      {label:"Turning chaos into a plan", c:"Snorkmaiden"},
+      {label:"Emotional first‑aid and snacks", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"You find a mysterious door in the forest:",
+    o:[
+      {label:"Call friends — adventure time!", c:"Moomintroll"},
+      {label:"Quietly slip through alone", c:"Snufkin"},
+      {label:"Kick first, ask questions later", c:"Little My"},
+      {label:"Take notes, mark the path, prepare gear", c:"Snorkmaiden"},
+      {label:"Pack sandwiches, then explore together", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Your relationship with rules:",
+    o:[
+      {label:"Guidelines, not chains", c:"Moomintroll"},
+      {label:"Rules are scenic detours to ignore", c:"Snufkin"},
+      {label:"Rules are for other people", c:"Little My"},
+      {label:"Rules keep things efficient", c:"Snorkmaiden"},
+      {label:"Rules matter when they protect people", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Pick a hobby:",
+    o:[
+      {label:"Collecting memories with friends", c:"Moomintroll"},
+      {label:"Harmonica & camping", c:"Snufkin"},
+      {label:"Martial arts or spicy debates", c:"Little My"},
+      {label:"Journaling & bullet lists", c:"Snorkmaiden"},
+      {label:"Baking & gardening", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Conflict style:",
+    o:[
+      {label:"Diplomatic but firm", c:"Moomintroll"},
+      {label:"Walk away if it’s nonsense", c:"Snufkin"},
+      {label:"Direct, explosive, done", c:"Little My"},
+      {label:"Structure a compromise", c:"Snorkmaiden"},
+      {label:"Defuse with warmth", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Ideal travel:",
+    o:[
+      {label:"Road trip with besties", c:"Moomintroll"},
+      {label:"Solo backpacking", c:"Snufkin"},
+      {label:"Anywhere with a bit of danger", c:"Little My"},
+      {label:"City break with itinerary", c:"Snorkmaiden"},
+      {label:"Cottage by a lake", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Your style vibe:",
+    o:[
+      {label:"Comfy & cute", c:"Moomintroll"},
+      {label:"Earthy & functional", c:"Snufkin"},
+      {label:"Bold & mischievous", c:"Little My"},
+      {label:"Polished & pastel", c:"Snorkmaiden"},
+      {label:"Apron‑core practicality", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Pick a comfort food:",
+    o:[
+      {label:"Cinnamon buns", c:"Moomintroll"},
+      {label:"Campfire soup", c:"Snufkin"},
+      {label:"Extra‑spicy noodles", c:"Little My"},
+      {label:"Neat little tea sandwiches", c:"Snorkmaiden"},
+      {label:"Hearty stew for everyone", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"At a party, you…",
+    o:[
+      {label:"Float around making friends", c:"Moomintroll"},
+      {label:"Step out for fresh air", c:"Snufkin"},
+      {label:"Start the loudest story", c:"Little My"},
+      {label:"Host with themes & labels", c:"Snorkmaiden"},
+      {label:"Ensure everyone’s included", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Your desk is covered with…",
+    o:[
+      {label:"Photos & souvenirs", c:"Moomintroll"},
+      {label:"Just a notebook", c:"Snufkin"},
+      {label:"Half‑finished experiments", c:"Little My"},
+      {label:"Tabs, lists, color codes", c:"Snorkmaiden"},
+      {label:"Snacks & a plant", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Biggest pet peeve:",
+    o:[
+      {label:"Exclusion or unkindness", c:"Moomintroll"},
+      {label:"Noise & clutter", c:"Snufkin"},
+      {label:"Pretending & hypocrisy", c:"Little My"},
+      {label:"Missed deadlines", c:"Snorkmaiden"},
+      {label:"People skipping meals", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"You’re motivated by…",
+    o:[
+      {label:"Belonging & discovery", c:"Moomintroll"},
+      {label:"Freedom & simplicity", c:"Snufkin"},
+      {label:"Thrill & honesty", c:"Little My"},
+      {label:"Achievement & order", c:"Snorkmaiden"},
+      {label:"Care & stability", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Morning routine:",
+    o:[
+      {label:"Stretch, message friends", c:"Moomintroll"},
+      {label:"Sunrise walk alone", c:"Snufkin"},
+      {label:"Coffee then chaos", c:"Little My"},
+      {label:"Plan the day, tidy desk", c:"Snorkmaiden"},
+      {label:"Breakfast for the house", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"Pick a motto:",
+    o:[
+      {label:"“Let’s see what happens.”", c:"Moomintroll"},
+      {label:"“Leave only footprints.”", c:"Snufkin"},
+      {label:"“Say it out loud.”", c:"Little My"},
+      {label:"“Design, then do.”", c:"Snorkmaiden"},
+      {label:"“Everyone eats first.”", c:"Moominmamma"}
+    ]
+  },
+  {
+    t:"If friends needed you for a big move…",
+    o:[
+      {label:"I’m there with boxes & jokes", c:"Moomintroll"},
+      {label:"I’ll help early, then slip away", c:"Snufkin"},
+      {label:"I’ll lift the heavy stuff fast", c:"Little My"},
+      {label:"I’ll coordinate vans & labels", c:"Snorkmaiden"},
+      {label:"I’ll bring food and patch drama", c:"Moominmamma"}
+    ]
+  }
+];
+
+// Shuffle options per question for variety
+function shuffled(arr){
+  return [...arr].sort(()=>Math.random()-0.5);
+}
+
+// State
+let page = 0; // 0..19
+const answers = Array(QUESTIONS.length).fill(null);
+
+const form = document.getElementById('form');
+const progressEl = document.getElementById('progress');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const finishBtn = document.getElementById('finishBtn');
+const errEl = document.getElementById('err');
+const resultEl = document.getElementById('result');
+const saveBtn = document.getElementById('saveBtn');
+
+// Load saved
+try{
+  const saved = JSON.parse(localStorage.getItem('moomin_quiz_v1') || 'null');
+  if(saved && Array.isArray(saved.answers) && typeof saved.page === 'number'){
+    if(saved.answers.length === QUESTIONS.length){
+      for(let i=0;i<answers.length;i++) answers[i] = saved.answers[i];
+      page = Math.min(Math.max(saved.page,0), QUESTIONS.length-1);
+    }
+  }
+}catch{}
+
+const optionOrders = QUESTIONS.map(q => shuffled(q.o));
+
+function render(){
+  errEl.style.display = 'none';
+  resultEl.innerHTML = '';
+
+  form.innerHTML = '';
+  const q = QUESTIONS[page];
+  const wrap = document.createElement('div');
+  wrap.className = 'q';
+
+  const title = document.createElement('div');
+  title.className = 'q-title';
+  title.textContent = (page+1)+". "+q.t;
+  wrap.appendChild(title);
+
+  const opts = document.createElement('div');
+  opts.className = 'opts';
+
+  optionOrders[page].forEach((opt, idx) => {
+    const id = `q${page}_opt${idx}`;
+    const label = document.createElement('label');
+    label.className = 'opt';
+    label.setAttribute('for', id);
+
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = `q${page}`;
+    input.id = id;
+    input.value = opt.c;
+    input.checked = answers[page] && answers[page].c === opt.c && answers[page].label === opt.label;
+
+    input.addEventListener('change', () => {
+      answers[page] = { c: opt.c, label: opt.label };
+      updateNav();
+    });
+
+    const span = document.createElement('span');
+    span.textContent = opt.label;
+
+    label.appendChild(input);
+    label.appendChild(span);
+    opts.appendChild(label);
+  });
+
+  wrap.appendChild(opts);
+  form.appendChild(wrap);
+
+  updateNav();
+}
+
+function updateNav(){
+  const answered = !!answers[page];
+  const pct = ((answers.filter(Boolean).length)/QUESTIONS.length)*100;
+  progressEl.style.width = pct + '%';
+  prevBtn.disabled = page===0;
+  nextBtn.style.display = page < QUESTIONS.length-1 ? 'inline-block' : 'none';
+  finishBtn.style.display = page === QUESTIONS.length-1 ? 'inline-block' : 'none';
+  nextBtn.disabled = !answered;
+  finishBtn.disabled = !answered;
+  document.getElementById('err').style.display = answered ? 'none':'none';
+  // save draft
+  localStorage.setItem('moomin_quiz_v1', JSON.stringify({answers, page}));
+}
+
+prevBtn.addEventListener('click', () => { if(page>0){ page--; render(); } });
+nextBtn.addEventListener('click', () => {
+  if(!answers[page]){ errEl.style.display='block'; return; }
+  if(page < QUESTIONS.length-1){ page++; render(); }
+});
+saveBtn.addEventListener('click', () => {
+  localStorage.setItem('moomin_quiz_v1', JSON.stringify({answers, page}));
+  saveBtn.textContent = "Saved ✔";
+  setTimeout(()=> saveBtn.textContent = "Save progress", 1200);
+});
+
+finishBtn.addEventListener('click', () => {
+  if(!answers[page]){ errEl.style.display='block'; return; }
+  // Tally
+  const tally = {};
+  Object.keys(CHARACTERS).forEach(k => tally[k]=0);
+  answers.forEach(a => { if(a) tally[a.c]++; });
+
+  // Determine top
+  const ranked = Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+  const [topName, topScore] = ranked[0];
+  const second = ranked[1];
+
+  // Build result
+  const info = CHARACTERS[topName];
+  const pct = Math.round((topScore/QUESTIONS.length)*100);
+
+  const badge = `<div class="badge" style="background:${info.color}">${info.emoji}</div>`;
+  const html = `
+    <div class="card">
+      ${badge}
+      <h2 style="margin:0">${topName}</h2>
+      <div class="small">${pct}% match</div>
+      <p class="desc">${info.blurb}</p>
+      <div class="grid-two">
+        <div class="card">
+          <strong>Why you got this:</strong>
+          <ul style="text-align:left; margin:8px 0 0 18px; line-height:1.5">
+            ${explain(topName, answers).map(li=>`<li>${li}</li>`).join('')}
+          </ul>
+        </div>
+        <div class="card">
+          <strong>Runner‑up:</strong>
+          <div style="margin-top:6px">${second[0]} — ${Math.round((second[1]/QUESTIONS.length)*100)}% match</div>
+          <div class="small" style="margin-top:8px">You likely balance traits from both.</div>
+        </div>
+      </div>
+      <div class="restart">
+        <button type="button" class="secondary" onclick="restart()">Restart</button>
+      </div>
+    </div>`;
+
+  resultEl.innerHTML = html;
+  // Scroll to result
+  resultEl.scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+function explain(charName, answers){
+  // Pull 3-5 selected options that map nicely to a sentence
+  const picks = answers.filter(Boolean).filter(a=>a.c===charName).slice(0,5).map(a=>a.label.toLowerCase());
+  if(picks.length===0) return ["A balanced set of answers leaned closest to this character."];
+  const templates = {
+    Moomintroll:[
+      "You chose people‑first, cozy adventure options like “%s%.”.",
+      "You often picked connection and discovery over strict plans.",
+      "Your answers favored warmth and curiosity."
+    ],
+    Snufkin:[
+      "You leaned toward freedom and solitude choices like “%s%.”.",
+      "You value minimalism and independence.",
+      "You’re comfortable changing paths when needed."
+    ],
+    "Little My":[
+      "You picked bold, no‑nonsense options such as “%s%.”.",
+      "You prefer directness and intensity over hesitation.",
+      "You like a little chaos with your honesty."
+    ],
+    Snorkmaiden:[
+      "You selected organized and aesthetic options like “%s%.”.",
+      "You enjoy plans, structure, and a polished vibe.",
+      "You aim for efficient, tidy outcomes."
+    ],
+    Moominmamma:[
+      "You chose nurturing, practical options such as “%s%.”.",
+      "You keep groups safe, fed, and steady.",
+      "You solve tension with care and common sense."
+    ]
+  };
+  const t = templates[charName];
+  const joined = picks.slice(0,3).join("”, “");
+  return t.map((s,i)=> i===0 ? s.replace("%s%", joined) : s);
+}
+
+function restart(){
+  localStorage.removeItem('moomin_quiz_v1');
+  for(let i=0;i<answers.length;i++) answers[i]=null;
+  page=0;
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+render();
+</script>
+</body>
+</html>
